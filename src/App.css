@@ -1,0 +1,123 @@
+.game-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.game-header h1 {
+  margin-bottom: 0.2rem;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: #64748b;
+  margin-bottom: 3rem;
+}
+
+.card {
+  background: white;
+  padding: 3rem;
+  border-radius: 2rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  border: 4px solid #e2e8f0;
+}
+
+.lobby h2 {
+  color: #2563eb;
+  font-size: 2rem;
+}
+
+.start-btn {
+  padding: 1.2rem 3rem;
+  font-size: 1.5rem;
+  margin: 2rem 0;
+}
+
+.upcoming {
+  margin-top: 2rem;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.playing .stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+  color: #475569;
+}
+
+.problem {
+  font-size: 5rem;
+  font-weight: 800;
+  margin: 2rem 0;
+  color: #1e293b;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.option-btn {
+  padding: 1.5rem;
+  font-size: 2rem;
+  background-color: #f8fafc;
+  color: #1e293b;
+  border: 2px solid #e2e8f0;
+}
+
+.option-btn:hover {
+  background-color: #eef2ff;
+  border-color: #3b82f6;
+}
+
+.option-btn.correct {
+  background-color: #22c55e !important;
+  color: white !important;
+  border-color: #16a34a !important;
+}
+
+.feedback {
+  font-size: 1.5rem;
+  font-weight: bold;
+  padding: 1rem;
+  border-radius: 1rem;
+  animation: bounce 0.5s;
+}
+
+.feedback.correct {
+  color: #15803d;
+}
+
+.feedback.wrong {
+  color: #dc2626;
+}
+
+.summary .final-score {
+  font-size: 3rem;
+  margin: 1.5rem 0;
+}
+
+.summary .final-score span {
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.secondary {
+  background-color: #94a3b8;
+  margin-left: 1rem;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@media (max-width: 600px) {
+  .problem { font-size: 3rem; }
+  .options { grid-template-columns: 1fr; }
+}
