@@ -1,123 +1,202 @@
+/* Pokemon-inspired Theme */
+.pokemon-theme {
+  --poke-red: #ee1515;
+  --poke-blue: #3b4cca;
+  --poke-yellow: #ffde00;
+  --poke-gold: #b3a125;
+  --poke-dark: #222222;
+  --poke-light: #f0f0f0;
+}
+
 .game-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: 100vh;
 }
 
 .game-header h1 {
-  margin-bottom: 0.2rem;
+  color: var(--poke-blue);
+  text-shadow: 2px 2px var(--poke-yellow);
+  font-size: 3.5rem;
+  margin: 0;
 }
 
 .subtitle {
-  font-size: 1.2rem;
-  color: #64748b;
-  margin-bottom: 3rem;
+  font-weight: bold;
+  color: var(--poke-dark);
+  letter-spacing: 1px;
 }
 
 .card {
   background: white;
-  padding: 3rem;
-  border-radius: 2rem;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-  border: 4px solid #e2e8f0;
+  border-radius: 1.5rem;
+  border: 10px solid var(--poke-dark);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 15px 0 var(--poke-dark);
+  padding: 2rem;
 }
 
-.lobby h2 {
-  color: #2563eb;
-  font-size: 2rem;
+/* Pokeball Decoration */
+.pokeball-decoration {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background: var(--poke-dark);
 }
+.pokeball-decoration.top { top: 45%; }
+.pokeball-decoration::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 8px solid var(--poke-dark);
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.lobby {
+  background: linear-gradient(to bottom, var(--poke-red) 50%, white 50%);
+  color: white;
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+.lobby h2 { font-size: 2.5rem; margin-top: 5rem; color: var(--poke-dark); }
+.lobby p { color: var(--poke-dark); font-weight: bold; }
+.rules { font-size: 1.2rem; color: var(--poke-red) !important; }
 
 .start-btn {
-  padding: 1.2rem 3rem;
-  font-size: 1.5rem;
-  margin: 2rem 0;
-}
-
-.upcoming {
+  background: var(--poke-yellow);
+  color: var(--poke-blue);
+  border: 4px solid var(--poke-blue);
+  font-size: 2rem;
+  padding: 1rem 3rem;
   margin-top: 2rem;
-  font-style: italic;
-  color: #94a3b8;
+  border-radius: 50px;
 }
 
-.playing .stats {
+/* Battle Screen */
+.battle-info {
   display: flex;
   justify-content: space-between;
+  background: #444;
+  color: white;
+  padding: 1rem;
+  border-radius: 10px;
+  font-family: monospace;
   font-size: 1.2rem;
+}
+
+.timer-bar-container {
+  width: 100%;
+  height: 25px;
+  background: #ddd;
+  border-radius: 15px;
+  margin: 1.5rem 0 0.5rem;
+  border: 3px solid var(--poke-dark);
+  overflow: hidden;
+}
+
+.timer-bar {
+  height: 100%;
+  background: #4ade80; /* Green */
+  transition: width 1s linear, background-color 0.3s;
+}
+
+.timer-bar.low {
+  background: var(--poke-red);
+}
+
+.timer-text {
   font-weight: bold;
-  margin-bottom: 2rem;
-  color: #475569;
+  color: var(--poke-red);
+}
+
+.problem-area {
+  margin: 2rem 0;
+  background: #f8fafc;
+  padding: 2rem;
+  border-radius: 20px;
+  border: 4px dashed var(--poke-blue);
+}
+
+.wild-tag {
+  color: var(--poke-blue);
+  font-weight: bold;
+  font-style: italic;
 }
 
 .problem {
   font-size: 5rem;
-  font-weight: 800;
-  margin: 2rem 0;
-  color: #1e293b;
+  font-weight: 900;
+  color: var(--poke-dark);
 }
 
 .options {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
 }
 
 .option-btn {
-  padding: 1.5rem;
+  background: white;
+  border: 4px solid var(--poke-dark);
+  color: var(--poke-dark);
   font-size: 2rem;
-  background-color: #f8fafc;
-  color: #1e293b;
-  border: 2px solid #e2e8f0;
+  padding: 1rem;
+  border-radius: 15px;
 }
 
 .option-btn:hover {
-  background-color: #eef2ff;
-  border-color: #3b82f6;
+  background: var(--poke-yellow);
 }
 
 .option-btn.correct {
-  background-color: #22c55e !important;
-  color: white !important;
-  border-color: #16a34a !important;
+  background: #22c55e !important;
+  color: white;
 }
 
-.feedback {
-  font-size: 1.5rem;
-  font-weight: bold;
+.feedback-box {
+  margin-top: 1.5rem;
   padding: 1rem;
-  border-radius: 1rem;
-  animation: bounce 0.5s;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 1.3rem;
+  border: 3px solid var(--poke-dark);
 }
 
-.feedback.correct {
-  color: #15803d;
-}
+.feedback-box.correct { background: #dcfce7; color: #166534; }
+.feedback-box.wrong { background: #fee2e2; color: #991b1b; }
 
-.feedback.wrong {
-  color: #dc2626;
-}
-
-.summary .final-score {
+/* Summary */
+.victory-banner {
+  background: var(--poke-yellow);
+  color: var(--poke-blue);
   font-size: 3rem;
-  margin: 1.5rem 0;
+  font-weight: 900;
+  padding: 1rem;
+  transform: rotate(-2deg);
+  border: 6px solid var(--poke-blue);
+  margin-bottom: 2rem;
 }
 
-.summary .final-score span {
-  color: #2563eb;
-  font-weight: 800;
-}
+.final-score { font-size: 2rem; }
+.final-score span { color: var(--poke-red); font-size: 3.5rem; font-weight: 900; }
+.rank { font-size: 1.5rem; font-weight: bold; color: var(--poke-blue); }
 
-.secondary {
-  background-color: #94a3b8;
-  margin-left: 1rem;
-}
-
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+.actions button {
+  margin: 0.5rem;
 }
 
 @media (max-width: 600px) {
-  .problem { font-size: 3rem; }
+  .problem { font-size: 3.5rem; }
   .options { grid-template-columns: 1fr; }
+  .game-header h1 { font-size: 2.5rem; }
 }
