@@ -1,4 +1,4 @@
-/* Pokemon-inspired Theme */
+/* Pokemon-inspired Theme - Updated for Adaptive Mode */
 .pokemon-theme {
   --poke-red: #ee1515;
   --poke-blue: #3b4cca;
@@ -63,14 +63,29 @@
 
 .lobby {
   background: linear-gradient(to bottom, var(--poke-red) 50%, white 50%);
-  color: white;
   padding-top: 4rem;
   padding-bottom: 4rem;
 }
 
 .lobby h2 { font-size: 2.5rem; margin-top: 5rem; color: var(--poke-dark); }
 .lobby p { color: var(--poke-dark); font-weight: bold; }
-.rules { font-size: 1.2rem; color: var(--poke-red) !important; }
+
+.lifetime-badge {
+  background: rgba(255, 255, 255, 0.9);
+  border: 4px solid var(--poke-dark);
+  border-radius: 15px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  color: var(--poke-dark);
+}
+
+.stats-grid {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
 
 .start-btn {
   background: var(--poke-yellow);
@@ -78,20 +93,43 @@
   border: 4px solid var(--poke-blue);
   font-size: 2rem;
   padding: 1rem 3rem;
-  margin-top: 2rem;
+  margin: 1rem 0;
   border-radius: 50px;
+  cursor: pointer;
+}
+
+.reset-btn {
+  background: none;
+  border: none;
+  color: #666;
+  text-decoration: underline;
+  cursor: pointer;
+  display: block;
+  margin: 1rem auto;
 }
 
 /* Battle Screen */
 .battle-info {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   background: #444;
   color: white;
-  padding: 1rem;
+  padding: 0.8rem 1.2rem;
   border-radius: 10px;
   font-family: monospace;
-  font-size: 1.2rem;
+}
+
+.session-stats span.c { color: #4ade80; }
+.session-stats span.w { color: #f87171; }
+
+.queue-info .alert {
+  background: var(--poke-yellow);
+  color: var(--poke-dark);
+  padding: 0.2rem 0.6rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  animation: pulse 1s infinite;
 }
 
 .timer-bar-container {
@@ -106,31 +144,18 @@
 
 .timer-bar {
   height: 100%;
-  background: #4ade80; /* Green */
+  background: #4ade80;
   transition: width 1s linear, background-color 0.3s;
 }
 
-.timer-bar.low {
-  background: var(--poke-red);
-}
-
-.timer-text {
-  font-weight: bold;
-  color: var(--poke-red);
-}
+.timer-bar.low { background: var(--poke-red); }
 
 .problem-area {
-  margin: 2rem 0;
+  margin: 1rem 0;
   background: #f8fafc;
   padding: 2rem;
   border-radius: 20px;
   border: 4px dashed var(--poke-blue);
-}
-
-.wild-tag {
-  color: var(--poke-blue);
-  font-weight: bold;
-  font-style: italic;
 }
 
 .problem {
@@ -152,15 +177,20 @@
   font-size: 2rem;
   padding: 1rem;
   border-radius: 15px;
+  cursor: pointer;
 }
 
-.option-btn:hover {
-  background: var(--poke-yellow);
-}
+.option-btn:hover:not(:disabled) { background: var(--poke-yellow); }
 
-.option-btn.correct {
-  background: #22c55e !important;
-  color: white;
+.option-btn.correct { background: #22c55e !important; color: white; }
+
+.battle-controls { margin-top: 1.5rem; }
+.exit-btn {
+  background: #eee;
+  border: 2px solid #ccc;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
 .feedback-box {
@@ -175,24 +205,10 @@
 .feedback-box.correct { background: #dcfce7; color: #166534; }
 .feedback-box.wrong { background: #fee2e2; color: #991b1b; }
 
-/* Summary */
-.victory-banner {
-  background: var(--poke-yellow);
-  color: var(--poke-blue);
-  font-size: 3rem;
-  font-weight: 900;
-  padding: 1rem;
-  transform: rotate(-2deg);
-  border: 6px solid var(--poke-blue);
-  margin-bottom: 2rem;
-}
-
-.final-score { font-size: 2rem; }
-.final-score span { color: var(--poke-red); font-size: 3.5rem; font-weight: 900; }
-.rank { font-size: 1.5rem; font-weight: bold; color: var(--poke-blue); }
-
-.actions button {
-  margin: 0.5rem;
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
 @media (max-width: 600px) {
