@@ -1,12 +1,38 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import "./App.css"
 
 type AppState = "HUB" | "MULTIPLICATION" | "FRACTIONS" | "DECIMALS" | "PEMDAS" | "ALGEBRA"
 type GameState = "LOBBY" | "PLAYING"
+const UNLOCK_KEY = "owen_math_unlock_level"
+const GOAL = 10
 
+const LEVELS: {id: AppState, name: string, grade: string}[] = [
+  {id: "MULTIPLICATION", name: "Mult. Battle", grade: "Grades 2-4"},
+  {id: "FRACTIONS", name: "Fraction Quest", grade: "Grades 4-6"},
+  {id: "DECIMALS", name: "Decimal Dash", grade: "Grades 4-6"},
+  {id: "PEMDAS", name: "PEMDAS Puzzle", grade: "Grades 5-6"},
+  {id: "ALGEBRA", name: "Algebra Arena", grade: "Grades 6+"}
+]
 
 function App() {
   const [appState, setAppState] = useState<AppState>("HUB")
+  const [unlockLevel, setUnlockLevel] = useState(0)
+
+  useEffect(() => {
+    const saved = localStorage.getItem(UNLOCK_KEY)
+    if (saved) setUnlockLevel(parseInt(saved))
+  }, [])
+
+  const onComplete = (state: AppState) => {
+    const currentIndex = LEVELS.findIndex(l => l.id === state)
+    if (currentIndex === unlockLevel && unlockLevel < LEVELS.length - 1) {
+      const nextLevel = unlockLevel + 1
+      setUnlockLevel(nextLevel)
+      localStorage.setItem(UNLOCK_KEY, nextLevel.toString())
+      alert("🏆 LEVEL UNLOCKED! New training available, Owen!")
+    }
+    setAppState("HUB")
+  }
 
   if (appState === "HUB") {
     return (
@@ -14,39 +40,20 @@ function App() {
         <div className="exclusive-banner">AUTHORIZED ACCESS: OWEN ONLY</div>
         <header className="game-header">
           <h1>Owen's Math Hub</h1>
-          <p className="subtitle">Elite Training for Owen Chen</p>
+          <p className="subtitle">Level Progression: {unlockLevel + 1} / {LEVELS.length}</p>
         </header>
         <div className="hub-grid">
-          <div className="card hub-card" onClick={() => setAppState("MULTIPLICATION")}>
-            <div className="pokeball-decoration top"></div>
-            <h2>Mult. Battle</h2>
-            <span className="grade-tag">Grades 2-4</span>
-            <button className="start-btn">Enter ⚔️</button>
-          </div>
-          <div className="card hub-card" onClick={() => setAppState("FRACTIONS")}>
-            <div className="pokeball-decoration top"></div>
-            <h2>Fraction Quest</h2>
-            <span className="grade-tag">Grades 4-6</span>
-            <button className="start-btn">Start 🧩</button>
-          </div>
-          <div className="card hub-card" onClick={() => setAppState("DECIMALS")}>
-            <div className="pokeball-decoration top"></div>
-            <h2>Decimal Dash</h2>
-            <span className="grade-tag">Grades 4-6</span>
-            <button className="start-btn">Dash 💨</button>
-          </div>
-          <div className="card hub-card" onClick={() => setAppState("PEMDAS")}>
-            <div className="pokeball-decoration top"></div>
-            <h2>PEMDAS Puzzle</h2>
-            <span className="grade-tag">Grades 5-6</span>
-            <button className="start-btn">Solve ⚡</button>
-          </div>
-          <div className="card hub-card" onClick={() => setAppState("ALGEBRA")}>
-            <div className="pokeball-decoration top"></div>
-            <h2>Algebra Arena</h2>
-            <span className="grade-tag">Grades 6+</span>
-            <button className="start-btn">Arena 🏟️</button>
-          </div>
+          {LEVELS.map((lvl, idx) => {
+            const isLocked = idx > unlockLevel
+            return (
+              <div key={lvl.id} className={`card hub-card ${isLocked ? "locked" : ""}`} onClick={() => !isLocked && setAppState(lvl.id)}>
+                <div className="pokeball-decoration top"></div>
+                <h2>{lvl.name}</h2>
+                <span className="grade-tag">{lvl.grade}</span>
+                {isLocked ? <div className="lock-icon">🔒 LOCKED</div> : <button className="start-btn">Enter ⚔️</button>}
+              </div>
+            )
+          })}
         </div>
         <footer className="hub-footer">
            <button className="reset-btn" onClick={() => { if(confirm("Reset all progress, Owen?")) { localStorage.clear(); window.location.reload(); } }}>Reset Data</button>
@@ -57,18 +64,16 @@ function App() {
 
   const exit = () => setAppState("HUB")
   switch(appState) {
-    case "MULTIPLICATION": return <MultiplicationGame onExit={exit} />
-    case "FRACTIONS": return <FractionGame onExit={exit} />
-    case "DECIMALS": return <DecimalGame onExit={exit} />
-    case "PEMDAS": return <PEMDASGame onExit={exit} />
-    case "ALGEBRA": return <AlgebraGame onExit={exit} />
+    case "MULTIPLICATION": return <MultiplicationGame onExit={exit} onComplete={() => onComplete("MULTIPLICATION")} />
+    case "FRACTIONS": return <FractionGame onExit={exit} onComplete={() => onComplete("FRACTIONS")} />
+    case "DECIMALS": return <DecimalGame onExit={exit} onComplete={() => onComplete("DECIMALS")} />
+    case "PEMDAS": return <PEMDASGame onExit={exit} onComplete={() => onComplete("PEMDAS")} />
+    case "ALGEBRA": return <AlgebraGame onExit={exit} onComplete={() => onComplete("ALGEBRA")} />
     default: return <div />
   }
 }
 
-/* --- REUSABLE GAME COMPONENTS --- */
-
-function MultiplicationGame({ onExit }: { onExit: () => void }) {
+function MultiplicationGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 })
   const [problem, setProblem] = useState({ a: 1, b: 1, options: [1] as number[] })
@@ -88,12 +93,17 @@ function MultiplicationGame({ onExit }: { onExit: () => void }) {
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <header className="game-status">Correct: {stats.c} | Wrong: {stats.w}</header>
+        <header className="game-status">Target: {stats.c}/{GOAL} | Mistakes: {stats.w}</header>
         <div className="problem-area"><div className="problem">{problem.a} × {problem.b}</div></div>
         <div className="options">
           {problem.options.map(o => <button key={o} className="option-btn" onClick={() => {
-            if (o === problem.a * problem.b) { setStats(s=>({ ...s, c: s.c+1 })); setFeedback({m:"💥 HIT!", t:"correct"}); setTimeout(generate, 1000) }
-            else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"MISS!", t:"wrong"}); }
+            if (o === problem.a * problem.b) { 
+              const newC = stats.c + 1
+              setStats(s=>({ ...s, c: newC }))
+              setFeedback({m:"💥 HIT!", t:"correct"})
+              if (newC >= GOAL) setTimeout(onComplete, 1000)
+              else setTimeout(generate, 1000)
+            } else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"MISS!", t:"wrong"}); }
           }}>{o}</button>)}
         </div>
         {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
@@ -103,7 +113,7 @@ function MultiplicationGame({ onExit }: { onExit: () => void }) {
   )
 }
 
-function FractionGame({ onExit }: { onExit: () => void }) {
+function FractionGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 })
   const [prob, setProb] = useState<any>(null)
@@ -130,15 +140,20 @@ function FractionGame({ onExit }: { onExit: () => void }) {
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <header className="game-status">Score: {stats.c} - {stats.w}</header>
+        <header className="game-status">Goal: {stats.c}/{GOAL}</header>
         <div className="problem-area">
           {prob?.t === "SIMP" ? <div className="fraction-row"><div className="frac"><span>{prob.n1}</span><hr/><span>{prob.d1}</span></div> <div className="vs">= ?</div></div>
           : <div className="fraction-row"><div className="frac"><span>{prob?.n1}</span><hr/><span>{prob?.d1}</span></div> <div className="vs">?</div> <div className="frac"><span>{prob?.n2}</span><hr/><span>{prob?.d2}</span></div></div>}
         </div>
         <div className="options">
           {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => {
-            if (o === prob.ans) { setStats(s=>({ ...s, c: s.c+1 })); setFeedback({m:"🌟 NICE!", t:"correct"}); setTimeout(generate, 1000) }
-            else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"Try again!", t:"wrong"}); }
+            if (o === prob.ans) { 
+              const newC = stats.c + 1
+              setStats(s=>({ ...s, c: newC })); 
+              setFeedback({m:"🌟 NICE!", t:"correct"})
+              if (newC >= GOAL) setTimeout(onComplete, 1000)
+              else setTimeout(generate, 1000)
+            } else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"Try again!", t:"wrong"}); }
           }}>{o}</button>)}
         </div>
         {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
@@ -148,7 +163,7 @@ function FractionGame({ onExit }: { onExit: () => void }) {
   )
 }
 
-function DecimalGame({ onExit }: { onExit: () => void }) {
+function DecimalGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
 
@@ -165,12 +180,14 @@ function DecimalGame({ onExit }: { onExit: () => void }) {
 
   if (gameState === "LOBBY") return <Lobby name="Decimal Dash" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
   return <GameView name="Decimal Dash" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
-    if(o===prob.ans) { setStats(s=>({...s,c:s.c+1})); setFeedback({m:"✨ SHINY!", t:"correct"}); setTimeout(generate, 1000) }
-    else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Missed...", t:"wrong"}); }
+    if(o===prob.ans) { 
+      const newC = stats.c + 1; setStats(s=>({...s,c:newC})); setFeedback({m:"✨ SHINY!", t:"correct"}); 
+      if(newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000) 
+    } else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Missed...", t:"wrong"}); }
   }} onExit={()=>setGameState("LOBBY")} />
 }
 
-function PEMDASGame({ onExit }: { onExit: () => void }) {
+function PEMDASGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
 
@@ -189,12 +206,14 @@ function PEMDASGame({ onExit }: { onExit: () => void }) {
 
   if (gameState === "LOBBY") return <Lobby name="PEMDAS Puzzle" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
   return <GameView name="PEMDAS" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
-    if(o===prob.ans) { setStats(s=>({...s,c:s.c+1})); setFeedback({m:"🎯 DIRECT HIT!", t:"correct"}); setTimeout(generate, 1000) }
-    else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Recalibrating...", t:"wrong"}); }
+    if(o===prob.ans) { 
+      const newC = stats.c + 1; setStats(s=>({...s,c:newC})); setFeedback({m:"🎯 DIRECT HIT!", t:"correct"}); 
+      if(newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
+    } else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Recalibrating...", t:"wrong"}); }
   }} onExit={()=>setGameState("LOBBY")} />
 }
 
-function AlgebraGame({ onExit }: { onExit: () => void }) {
+function AlgebraGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
 
@@ -211,8 +230,10 @@ function AlgebraGame({ onExit }: { onExit: () => void }) {
 
   if (gameState === "LOBBY") return <Lobby name="Algebra Arena" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
   return <GameView name="Algebra" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
-    if(o===prob.ans) { setStats(s=>({...s,c:s.c+1})); setFeedback({m:"💪 MASTERED!", t:"correct"}); setTimeout(generate, 1000) }
-    else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Keep solving!", t:"wrong"}); }
+    if(o===prob.ans) { 
+      const newC = stats.c + 1; setStats(s=>({...s,c:newC})); setFeedback({m:"💪 MASTERED!", t:"correct"}); 
+      if(newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
+    } else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Keep solving!", t:"wrong"}); }
   }} onExit={()=>setGameState("LOBBY")} />
 }
 
@@ -233,7 +254,7 @@ function GameView({ stats, prob, feedback, onAnswer, onExit }: any) {
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <header className="game-status">Score: {stats.c} | Mistakes: {stats.w}</header>
+        <header className="game-status">Goal: {stats.c}/{GOAL} | Mistakes: {stats.w}</header>
         <div className="problem-area"><div className="problem">{prob?.q}</div></div>
         <div className="options">
           {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={()=>onAnswer(o)}>{o}</button>)}
