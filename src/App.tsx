@@ -5,7 +5,8 @@ type AppState = "HUB" | "MULTIPLICATION" | "FRACTIONS" | "DECIMALS" | "PEMDAS" |
 type GameState = "LOBBY" | "PLAYING"
 const UNLOCK_KEY = "owen_math_unlock_level"
 const GOAL = 20
-const TIME_LIMIT = 10
+const TIME_LIMIT = 15
+const VERSION = "v1.2.3"
 
 const LEVELS: {id: AppState, name: string, grade: string}[] = [
   {id: "MULTIPLICATION", name: "Mult. Battle", grade: "Grades 2-4"},
@@ -57,6 +58,7 @@ function App() {
           })}
         </div>
         <footer className="hub-footer">
+           <p className="version-display">Owen's Hub {VERSION}</p>
            <button className="reset-btn" onClick={() => { if(confirm("Reset all progress, Owen?")) { localStorage.clear(); window.location.reload(); } }}>Reset Data</button>
         </footer>
       </div>
@@ -72,38 +74,6 @@ function App() {
     case "ALGEBRA": return <AlgebraGame onExit={exit} onComplete={() => onComplete("ALGEBRA")} />
     default: return <div />
   }
-}
-
-/* --- GAME LOGIC HOOK --- */
-function useGameTimer(onTimeOut: () => void, isActive: boolean) {
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const resetTimer = useCallback(() => {
-    setTimeLeft(TIME_LIMIT)
-    if (timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current)
-          onTimeOut()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }, [onTimeOut])
-
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
-  }, [])
-
-  useEffect(() => {
-    if (!isActive) stopTimer()
-    return () => stopTimer()
-  }, [isActive, stopTimer])
-
-  return { timeLeft, resetTimer, stopTimer }
 }
 
 /* --- REUSABLE COMPONENTS --- */
@@ -142,6 +112,8 @@ function MultiplicationGame({ onExit, onComplete }: any) {
   const [streak, setStreak] = useState(0)
   const [problem, setProblem] = useState<any>(null)
   const [feedback, setFeedback] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const timerRef = useRef<any>(null)
 
   const generate = useCallback(() => {
     const a = Math.floor(Math.random() * 12) + 1, b = Math.floor(Math.random() * 12) + 1
@@ -150,21 +122,36 @@ function MultiplicationGame({ onExit, onComplete }: any) {
     while(opts.size < 6) opts.add(ans + (Math.floor(Math.random()*20)-10))
     setProblem({ a, b, ans, options: Array.from(opts).sort(() => Math.random() - 0.5) })
     setFeedback(null)
-    resetTimer()
+    setTimeLeft(TIME_LIMIT)
   }, [])
 
   const handleTimeOut = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     setStats(s => ({ ...s, w: s.w + 1 }))
     setStreak(0)
-    setFeedback({ m: "⏰ TIME UP!", t: "wrong" })
+    setFeedback({ m: "⏲️ TIME UP!", t: "wrong" })
     setTimeout(generate, 1500)
   }, [generate])
 
-  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+  useEffect(() => {
+    if (gameState === "PLAYING" && !feedback) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current)
+            handleTimeOut()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [gameState, feedback, handleTimeOut])
 
   const handleAnswer = (o: number) => {
     if (feedback) return
-    stopTimer()
+    if (timerRef.current) clearInterval(timerRef.current)
     if (o === problem.ans) {
       const newC = stats.c + 1
       setStats(s => ({ ...s, c: newC }))
@@ -201,6 +188,8 @@ function FractionGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
   const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const timerRef = useRef<any>(null)
 
   const generate = useCallback(() => {
     const isSimp = Math.random() > 0.5
@@ -216,19 +205,34 @@ function FractionGame({ onExit, onComplete }: any) {
       setProb({ t: "COMP", n1, d1, n2, d2, ans, opts: ["<", "=", ">"] })
     }
     setFeedback(null)
-    resetTimer()
+    setTimeLeft(TIME_LIMIT)
   }, [])
 
   const handleTimeOut = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
-    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+    setFeedback({ m: "⏲️ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
   }, [generate])
 
-  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+  useEffect(() => {
+    if (gameState === "PLAYING" && !feedback) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current)
+            handleTimeOut()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [gameState, feedback, handleTimeOut])
 
   const handleAnswer = (o: any) => {
     if (feedback) return
-    stopTimer()
+    if (timerRef.current) clearInterval(timerRef.current)
     if (o === prob.ans) {
       const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
       setFeedback({ m: "🌟 NICE!", t: "correct" })
@@ -262,6 +266,8 @@ function DecimalGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
   const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const timerRef = useRef<any>(null)
 
   const generate = useCallback(() => {
     const isMult = Math.random() > 0.7
@@ -271,19 +277,34 @@ function DecimalGame({ onExit, onComplete }: any) {
     const opts = new Set([ans])
     while(opts.size < 6) opts.add(parseFloat((ans + (Math.random()*4-2)).toFixed(2)))
     setProb({ q: isMult ? `${a} × ${b}` : (a > b ? `${a} + ${b}` : `${b} - ${a}`), ans, opts: Array.from(opts).sort((x,y)=>x-y) })
-    setFeedback(null); resetTimer()
+    setFeedback(null); setTimeLeft(TIME_LIMIT)
   }, [])
 
   const handleTimeOut = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
-    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+    setFeedback({ m: "⏲️ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
   }, [generate])
 
-  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+  useEffect(() => {
+    if (gameState === "PLAYING" && !feedback) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current)
+            handleTimeOut()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [gameState, feedback, handleTimeOut])
 
   const handleAnswer = (o: any) => {
     if (feedback) return
-    stopTimer()
+    if (timerRef.current) clearInterval(timerRef.current)
     if (o === prob.ans) {
       const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
       setFeedback({ m: "✨ SHINY!", t: "correct" })
@@ -313,6 +334,8 @@ function PEMDASGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
   const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const timerRef = useRef<any>(null)
 
   const generate = useCallback(() => {
     const a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*5)+2, c = Math.floor(Math.random()*5)+2
@@ -324,19 +347,34 @@ function PEMDASGame({ onExit, onComplete }: any) {
     const opts = new Set([ans])
     while(opts.size < 6) opts.add(ans + (Math.floor(Math.random()*20)-10))
     setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
-    setFeedback(null); resetTimer()
+    setFeedback(null); setTimeLeft(TIME_LIMIT)
   }, [])
 
   const handleTimeOut = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
-    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+    setFeedback({ m: "⏲️ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
   }, [generate])
 
-  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+  useEffect(() => {
+    if (gameState === "PLAYING" && !feedback) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current)
+            handleTimeOut()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [gameState, feedback, handleTimeOut])
 
   const handleAnswer = (o: any) => {
     if (feedback) return
-    stopTimer()
+    if (timerRef.current) clearInterval(timerRef.current)
     if (o === prob.ans) {
       const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
       setFeedback({ m: "🎯 DIRECT HIT!", t: "correct" })
@@ -366,6 +404,8 @@ function AlgebraGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
   const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const timerRef = useRef<any>(null)
 
   const generate = useCallback(() => {
     const x = Math.floor(Math.random()*10)+1, a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*10)+1
@@ -373,19 +413,34 @@ function AlgebraGame({ onExit, onComplete }: any) {
     const opts = new Set([ans])
     while(opts.size < 6) opts.add(Math.max(1, ans + (Math.floor(Math.random()*10)-5)))
     setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
-    setFeedback(null); resetTimer()
+    setFeedback(null); setTimeLeft(TIME_LIMIT)
   }, [])
 
   const handleTimeOut = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
-    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+    setFeedback({ m: "⏲️ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
   }, [generate])
 
-  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+  useEffect(() => {
+    if (gameState === "PLAYING" && !feedback) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current)
+            handleTimeOut()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [gameState, feedback, handleTimeOut])
 
   const handleAnswer = (o: any) => {
     if (feedback) return
-    stopTimer()
+    if (timerRef.current) clearInterval(timerRef.current)
     if (o === prob.ans) {
       const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
       setFeedback({ m: "💪 MASTERED!", t: "correct" })
