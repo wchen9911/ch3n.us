@@ -24,7 +24,7 @@ function App() {
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME)
   const [performance, setPerformance] = useState<PerformanceMap>({})
   const [wrongQueue, setWrongQueue] = useState<string[]>([])
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load stats from localStorage
   useEffect(() => {
