@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import "./App.css"
 
 type AppState = "HUB" | "MULTIPLICATION" | "FRACTIONS" | "DECIMALS" | "PEMDAS" | "ALGEBRA"
 type GameState = "LOBBY" | "PLAYING"
 const UNLOCK_KEY = "owen_math_unlock_level"
-const GOAL = 10
+const GOAL = 20
+const TIME_LIMIT = 10
 
 const LEVELS: {id: AppState, name: string, grade: string}[] = [
   {id: "MULTIPLICATION", name: "Mult. Battle", grade: "Grades 2-4"},
@@ -40,7 +41,7 @@ function App() {
         <div className="exclusive-banner">AUTHORIZED ACCESS: OWEN ONLY</div>
         <header className="game-header">
           <h1>Owen's Math Hub</h1>
-          <p className="subtitle">Level Progression: {unlockLevel + 1} / {LEVELS.length}</p>
+          <p className="subtitle">Progress: {unlockLevel + 1} / {LEVELS.length} | Goal: 20 Correct per Game</p>
         </header>
         <div className="hub-grid">
           {LEVELS.map((lvl, idx) => {
@@ -73,41 +74,124 @@ function App() {
   }
 }
 
+/* --- GAME LOGIC HOOK --- */
+function useGameTimer(onTimeOut: () => void, isActive: boolean) {
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const resetTimer = useCallback(() => {
+    setTimeLeft(TIME_LIMIT)
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          onTimeOut()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }, [onTimeOut])
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
+  }, [])
+
+  useEffect(() => {
+    if (!isActive) stopTimer()
+    return () => stopTimer()
+  }, [isActive, stopTimer])
+
+  return { timeLeft, resetTimer, stopTimer }
+}
+
+/* --- REUSABLE COMPONENTS --- */
+
+function Lobby({ name, onStart, onExit }: any) {
+  return (
+    <div className="game-container pokemon-theme">
+      <div className="card lobby">
+        <h2>{name}</h2>
+        <p>Ready Owen? You need 20 correct answers to advance!</p>
+        <button onClick={onStart} className="start-btn">Start! ⚔️</button>
+        <button onClick={onExit} className="exit-btn">Back to Hub 🏠</button>
+      </div>
+    </div>
+  )
+}
+
+function GameHeader({ stats, streak, timeLeft, goal }: any) {
+  return (
+    <header className="game-status-bar">
+      <div className="stat-item">Goal: {stats.c}/{goal}</div>
+      <div className="stat-item streak-display">Streak: {streak} {streak >= 3 && "🔥"}</div>
+      <div className="timer-container">
+        <div className={`timer-fill ${timeLeft <= 3 ? "low" : ""}`} style={{ width: `${(timeLeft / TIME_LIMIT) * 100}%` }} />
+      </div>
+      <div className="stat-item">Time: {timeLeft}s</div>
+    </header>
+  )
+}
+
+/* --- GAMES --- */
+
 function MultiplicationGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
   const [stats, setStats] = useState({ c: 0, w: 0 })
-  const [problem, setProblem] = useState({ a: 1, b: 1, options: [1] as number[] })
+  const [streak, setStreak] = useState(0)
+  const [problem, setProblem] = useState<any>(null)
   const [feedback, setFeedback] = useState<any>(null)
 
   const generate = useCallback(() => {
     const a = Math.floor(Math.random() * 12) + 1, b = Math.floor(Math.random() * 12) + 1
     const ans = a * b
     const opts = new Set([ans])
-    while(opts.size < 4) opts.add(ans + (Math.floor(Math.random()*10)-5))
-    setProblem({ a, b, options: Array.from(opts).sort(() => Math.random() - 0.5) })
+    while(opts.size < 6) opts.add(ans + (Math.floor(Math.random()*20)-10))
+    setProblem({ a, b, ans, options: Array.from(opts).sort(() => Math.random() - 0.5) })
     setFeedback(null)
+    resetTimer()
   }, [])
+
+  const handleTimeOut = useCallback(() => {
+    setStats(s => ({ ...s, w: s.w + 1 }))
+    setStreak(0)
+    setFeedback({ m: "⏰ TIME UP!", t: "wrong" })
+    setTimeout(generate, 1500)
+  }, [generate])
+
+  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+
+  const handleAnswer = (o: number) => {
+    if (feedback) return
+    stopTimer()
+    if (o === problem.ans) {
+      const newC = stats.c + 1
+      setStats(s => ({ ...s, c: newC }))
+      setStreak(prev => prev + 1)
+      setFeedback({ m: streak >= 2 ? "🔥 FIRE STREAK!" : "💥 HIT!", t: "correct" })
+      if (newC >= GOAL) setTimeout(onComplete, 1000)
+      else setTimeout(generate, 1000)
+    } else {
+      setStats(s => ({ ...s, w: s.w + 1 }))
+      setStreak(0)
+      setFeedback({ m: "MISS!", t: "wrong" })
+      setTimeout(generate, 1500)
+    }
+  }
 
   if (gameState === "LOBBY") return <Lobby name="Multiplication Battle" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
   
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <header className="game-status">Target: {stats.c}/{GOAL} | Mistakes: {stats.w}</header>
-        <div className="problem-area"><div className="problem">{problem.a} × {problem.b}</div></div>
+        <GameHeader stats={stats} streak={streak} timeLeft={timeLeft} goal={GOAL} />
+        <div className="problem-area"><div className="problem">{problem?.a} × {problem?.b}</div></div>
         <div className="options">
-          {problem.options.map(o => <button key={o} className="option-btn" onClick={() => {
-            if (o === problem.a * problem.b) { 
-              const newC = stats.c + 1
-              setStats(s=>({ ...s, c: newC }))
-              setFeedback({m:"💥 HIT!", t:"correct"})
-              if (newC >= GOAL) setTimeout(onComplete, 1000)
-              else setTimeout(generate, 1000)
-            } else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"MISS!", t:"wrong"}); }
-          }}>{o}</button>)}
+          {problem?.options.map((o: any) => <button key={o} className="option-btn" onClick={() => handleAnswer(o)}>{o}</button>)}
         </div>
         {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
-        <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
+        <button className="exit-btn" onClick={onExit}>Exit</button>
       </div>
     </div>
   )
@@ -115,9 +199,8 @@ function MultiplicationGame({ onExit, onComplete }: any) {
 
 function FractionGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
-  const [stats, setStats] = useState({ c: 0, w: 0 })
-  const [prob, setProb] = useState<any>(null)
-  const [feedback, setFeedback] = useState<any>(null)
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
+  const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
 
   const generate = useCallback(() => {
     const isSimp = Math.random() > 0.5
@@ -125,7 +208,7 @@ function FractionGame({ onExit, onComplete }: any) {
       const common = Math.floor(Math.random()*3)+2, n = Math.floor(Math.random()*5)+1, d = n + Math.floor(Math.random()*5)+1
       const ans = `${n}/${d}`
       const opts = new Set([ans])
-      while(opts.size < 4) opts.add(`${Math.floor(Math.random()*5)+1}/${Math.floor(Math.random()*10)+2}`)
+      while(opts.size < 6) opts.add(`${Math.floor(Math.random()*5)+1}/${Math.floor(Math.random()*10)+2}`)
       setProb({ t: "SIMP", n1: n*common, d1: d*common, ans, opts: Array.from(opts).sort() })
     } else {
       const n1 = Math.floor(Math.random()*5)+1, d1 = Math.floor(Math.random()*5)+2, n2 = Math.floor(Math.random()*5)+1, d2 = Math.floor(Math.random()*5)+2
@@ -133,28 +216,40 @@ function FractionGame({ onExit, onComplete }: any) {
       setProb({ t: "COMP", n1, d1, n2, d2, ans, opts: ["<", "=", ">"] })
     }
     setFeedback(null)
+    resetTimer()
   }, [])
+
+  const handleTimeOut = useCallback(() => {
+    setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
+    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+  }, [generate])
+
+  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+
+  const handleAnswer = (o: any) => {
+    if (feedback) return
+    stopTimer()
+    if (o === prob.ans) {
+      const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
+      setFeedback({ m: "🌟 NICE!", t: "correct" })
+      if (newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
+    } else {
+      setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0); setFeedback({ m: "Try again!", t: "wrong" }); setTimeout(generate, 1500)
+    }
+  }
 
   if (gameState === "LOBBY") return <Lobby name="Fraction Quest" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
 
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <header className="game-status">Goal: {stats.c}/{GOAL}</header>
+        <GameHeader stats={stats} streak={streak} timeLeft={timeLeft} goal={GOAL} />
         <div className="problem-area">
           {prob?.t === "SIMP" ? <div className="fraction-row"><div className="frac"><span>{prob.n1}</span><hr/><span>{prob.d1}</span></div> <div className="vs">= ?</div></div>
           : <div className="fraction-row"><div className="frac"><span>{prob?.n1}</span><hr/><span>{prob?.d1}</span></div> <div className="vs">?</div> <div className="frac"><span>{prob?.n2}</span><hr/><span>{prob?.d2}</span></div></div>}
         </div>
         <div className="options">
-          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => {
-            if (o === prob.ans) { 
-              const newC = stats.c + 1
-              setStats(s=>({ ...s, c: newC })); 
-              setFeedback({m:"🌟 NICE!", t:"correct"})
-              if (newC >= GOAL) setTimeout(onComplete, 1000)
-              else setTimeout(generate, 1000)
-            } else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"Try again!", t:"wrong"}); }
-          }}>{o}</button>)}
+          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => handleAnswer(o)}>{o}</button>)}
         </div>
         {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
         <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
@@ -165,7 +260,8 @@ function FractionGame({ onExit, onComplete }: any) {
 
 function DecimalGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
-  const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
+  const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
 
   const generate = useCallback(() => {
     const isMult = Math.random() > 0.7
@@ -173,23 +269,50 @@ function DecimalGame({ onExit, onComplete }: any) {
     if (isMult) { a = (Math.floor(Math.random()*20)+1)/10; b = Math.floor(Math.random()*5)+2; ans = parseFloat((a * b).toFixed(2)) }
     else { a = (Math.floor(Math.random()*100)+10)/10; b = (Math.floor(Math.random()*100)+10)/10; ans = Math.random()>0.5 ? parseFloat((a+b).toFixed(2)) : parseFloat((Math.max(a,b)-Math.min(a,b)).toFixed(2)) }
     const opts = new Set([ans])
-    while(opts.size < 4) opts.add(parseFloat((ans + (Math.random()*2-1)).toFixed(2)))
-    setProb({ q: isMult ? `${a} × ${b}` : (a > b ? `${a} + ${b}` : `${b} - ${a}`), ans, opts: Array.from(opts).sort() })
-    setFeedback(null)
+    while(opts.size < 6) opts.add(parseFloat((ans + (Math.random()*4-2)).toFixed(2)))
+    setProb({ q: isMult ? `${a} × ${b}` : (a > b ? `${a} + ${b}` : `${b} - ${a}`), ans, opts: Array.from(opts).sort((x,y)=>x-y) })
+    setFeedback(null); resetTimer()
   }, [])
 
+  const handleTimeOut = useCallback(() => {
+    setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
+    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+  }, [generate])
+
+  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+
+  const handleAnswer = (o: any) => {
+    if (feedback) return
+    stopTimer()
+    if (o === prob.ans) {
+      const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
+      setFeedback({ m: "✨ SHINY!", t: "correct" })
+      if (newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
+    } else {
+      setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0); setFeedback({ m: "Missed...", t: "wrong" }); setTimeout(generate, 1500)
+    }
+  }
+
   if (gameState === "LOBBY") return <Lobby name="Decimal Dash" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
-  return <GameView name="Decimal Dash" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
-    if(o===prob.ans) { 
-      const newC = stats.c + 1; setStats(s=>({...s,c:newC})); setFeedback({m:"✨ SHINY!", t:"correct"}); 
-      if(newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000) 
-    } else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Missed...", t:"wrong"}); }
-  }} onExit={()=>setGameState("LOBBY")} />
+  return (
+    <div className="game-container pokemon-theme">
+      <div className="card playing">
+        <GameHeader stats={stats} streak={streak} timeLeft={timeLeft} goal={GOAL} />
+        <div className="problem-area"><div className="problem">{prob?.q}</div></div>
+        <div className="options">
+          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => handleAnswer(o)}>{o}</button>)}
+        </div>
+        {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
+        <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
+      </div>
+    </div>
+  )
 }
 
 function PEMDASGame({ onExit, onComplete }: any) {
   const [gameState, setGameState] = useState<GameState>("LOBBY")
-  const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
+  const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
 
   const generate = useCallback(() => {
     const a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*5)+2, c = Math.floor(Math.random()*5)+2
@@ -199,68 +322,90 @@ function PEMDASGame({ onExit, onComplete }: any) {
     else if(type===1) { q = `${a} × ${b} + ${c}`; ans = (a*b)+c }
     else { q = `${a} + ${b} × ${c}`; ans = a+(b*c) }
     const opts = new Set([ans])
-    while(opts.size < 4) opts.add(ans + (Math.floor(Math.random()*10)-5))
+    while(opts.size < 6) opts.add(ans + (Math.floor(Math.random()*20)-10))
     setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
-    setFeedback(null)
+    setFeedback(null); resetTimer()
   }, [])
+
+  const handleTimeOut = useCallback(() => {
+    setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
+    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+  }, [generate])
+
+  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+
+  const handleAnswer = (o: any) => {
+    if (feedback) return
+    stopTimer()
+    if (o === prob.ans) {
+      const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
+      setFeedback({ m: "🎯 DIRECT HIT!", t: "correct" })
+      if (newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
+    } else {
+      setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0); setFeedback({ m: "Recalibrating...", t: "wrong" }); setTimeout(generate, 1500)
+    }
+  }
 
   if (gameState === "LOBBY") return <Lobby name="PEMDAS Puzzle" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
-  return <GameView name="PEMDAS" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
-    if(o===prob.ans) { 
-      const newC = stats.c + 1; setStats(s=>({...s,c:newC})); setFeedback({m:"🎯 DIRECT HIT!", t:"correct"}); 
-      if(newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
-    } else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Recalibrating...", t:"wrong"}); }
-  }} onExit={()=>setGameState("LOBBY")} />
-}
-
-function AlgebraGame({ onExit, onComplete }: any) {
-  const [gameState, setGameState] = useState<GameState>("LOBBY")
-  const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
-
-  const generate = useCallback(() => {
-    const x = Math.floor(Math.random()*10)+1, a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*10)+1
-    const ans = x
-    const c = a * x + b
-    const q = `${a}x + ${b} = ${c}`
-    const opts = new Set([ans])
-    while(opts.size < 4) opts.add(Math.max(1, ans + (Math.floor(Math.random()*6)-3)))
-    setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
-    setFeedback(null)
-  }, [])
-
-  if (gameState === "LOBBY") return <Lobby name="Algebra Arena" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
-  return <GameView name="Algebra" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
-    if(o===prob.ans) { 
-      const newC = stats.c + 1; setStats(s=>({...s,c:newC})); setFeedback({m:"💪 MASTERED!", t:"correct"}); 
-      if(newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
-    } else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Keep solving!", t:"wrong"}); }
-  }} onExit={()=>setGameState("LOBBY")} />
-}
-
-function Lobby({ name, onStart, onExit }: any) {
   return (
     <div className="game-container pokemon-theme">
-      <div className="card lobby">
-        <h2>{name}</h2>
-        <p>Ready Owen? Your training begins now.</p>
-        <button onClick={onStart} className="start-btn">Start! ⚔️</button>
-        <button onClick={onExit} className="exit-btn">Back to Hub 🏠</button>
+      <div className="card playing">
+        <GameHeader stats={stats} streak={streak} timeLeft={timeLeft} goal={GOAL} />
+        <div className="problem-area"><div className="problem">{prob?.q}</div></div>
+        <div className="options">
+          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => handleAnswer(o)}>{o}</button>)}
+        </div>
+        {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
+        <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
       </div>
     </div>
   )
 }
 
-function GameView({ stats, prob, feedback, onAnswer, onExit }: any) {
+function AlgebraGame({ onExit, onComplete }: any) {
+  const [gameState, setGameState] = useState<GameState>("LOBBY")
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [streak, setStreak] = useState(0)
+  const [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+
+  const generate = useCallback(() => {
+    const x = Math.floor(Math.random()*10)+1, a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*10)+1
+    const ans = x, c = a * x + b, q = `${a}x + ${b} = ${c}`
+    const opts = new Set([ans])
+    while(opts.size < 6) opts.add(Math.max(1, ans + (Math.floor(Math.random()*10)-5)))
+    setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
+    setFeedback(null); resetTimer()
+  }, [])
+
+  const handleTimeOut = useCallback(() => {
+    setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0)
+    setFeedback({ m: "⏰ TIME UP!", t: "wrong" }); setTimeout(generate, 1500)
+  }, [generate])
+
+  const { timeLeft, resetTimer, stopTimer } = useGameTimer(handleTimeOut, gameState === "PLAYING" && !feedback)
+
+  const handleAnswer = (o: any) => {
+    if (feedback) return
+    stopTimer()
+    if (o === prob.ans) {
+      const newC = stats.c + 1; setStats(s => ({ ...s, c: newC })); setStreak(prev => prev + 1)
+      setFeedback({ m: "💪 MASTERED!", t: "correct" })
+      if (newC >= GOAL) setTimeout(onComplete, 1000); else setTimeout(generate, 1000)
+    } else {
+      setStats(s => ({ ...s, w: s.w + 1 })); setStreak(0); setFeedback({ m: "Keep solving!", t: "wrong" }); setTimeout(generate, 1500)
+    }
+  }
+
+  if (gameState === "LOBBY") return <Lobby name="Algebra Arena" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <header className="game-status">Goal: {stats.c}/{GOAL} | Mistakes: {stats.w}</header>
+        <GameHeader stats={stats} streak={streak} timeLeft={timeLeft} goal={GOAL} />
         <div className="problem-area"><div className="problem">{prob?.q}</div></div>
         <div className="options">
-          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={()=>onAnswer(o)}>{o}</button>)}
+          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => handleAnswer(o)}>{o}</button>)}
         </div>
         {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
-        <button className="exit-btn" onClick={onExit}>Exit</button>
+        <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
       </div>
     </div>
   )
