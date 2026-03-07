@@ -108,18 +108,30 @@
 .options {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: 1.5rem;
+  margin-top: 1rem;
 }
 .option-btn {
-  background: white;
-  border: 5px solid var(--poke-dark);
-  font-size: 2rem;
+  background: var(--poke-yellow);
+  color: var(--poke-blue);
+  border: 6px solid var(--poke-blue);
+  font-size: 2.5rem;
   padding: 1.5rem;
-  border-radius: 1rem;
+  border-radius: 1.5rem;
   cursor: pointer;
   font-weight: 900;
+  box-shadow: 0 8px 0 var(--poke-blue);
+  transition: all 0.1s;
 }
-.option-btn:hover { background: var(--poke-yellow); }
+.option-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 0 var(--poke-blue);
+  background: #fff;
+}
+.option-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--poke-blue);
+}
 .game-status {
   background: #333;
   color: #fff;
@@ -129,7 +141,7 @@
   font-weight: bold;
 }
 .feedback-box {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   padding: 1rem;
   border-radius: 1rem;
   font-weight: bold;
