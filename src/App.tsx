@@ -1,17 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useCallback } from "react"
 import "./App.css"
 
-type AppState = "HUB" | "MULTIPLICATION" | "FRACTIONS"
-type MultiplicationState = "LOBBY" | "PLAYING"
-const QUESTION_TIME = 10 
-const MULT_STORAGE_KEY = "ch3n_math_stats"
+type AppState = "HUB" | "MULTIPLICATION" | "FRACTIONS" | "DECIMALS" | "PEMDAS" | "ALGEBRA"
+type GameState = "LOBBY" | "PLAYING"
 
-interface ProblemStats {
-  correct: number
-  wrong: number
-  reinforceCount: number
-}
-type PerformanceMap = Record<string, ProblemStats>
 
 function App() {
   const [appState, setAppState] = useState<AppState>("HUB")
@@ -19,295 +11,235 @@ function App() {
   if (appState === "HUB") {
     return (
       <div className="game-container pokemon-theme">
+        <div className="exclusive-banner">AUTHORIZED ACCESS: OWEN ONLY</div>
         <header className="game-header">
-          <h1>ch3n.us Math Hub</h1>
-          <p className="subtitle">Level Up Your Math Skills!</p>
+          <h1>Owen's Math Hub</h1>
+          <p className="subtitle">Elite Training for Owen Chen</p>
         </header>
         <div className="hub-grid">
           <div className="card hub-card" onClick={() => setAppState("MULTIPLICATION")}>
             <div className="pokeball-decoration top"></div>
-            <h2>Multiplication Battle</h2>
-            <p>1x1 to 12x12 Adaptive Training</p>
+            <h2>Mult. Battle</h2>
             <span className="grade-tag">Grades 2-4</span>
-            <button className="start-btn">Enter Battle ⚔️</button>
-            <div className="pokeball-decoration bottom"></div>
+            <button className="start-btn">Enter ⚔️</button>
           </div>
           <div className="card hub-card" onClick={() => setAppState("FRACTIONS")}>
             <div className="pokeball-decoration top"></div>
             <h2>Fraction Quest</h2>
-            <p>Simplifying, Adding & Comparing</p>
             <span className="grade-tag">Grades 4-6</span>
-            <button className="start-btn">Start Quest 🧩</button>
-            <div className="pokeball-decoration bottom"></div>
+            <button className="start-btn">Start 🧩</button>
+          </div>
+          <div className="card hub-card" onClick={() => setAppState("DECIMALS")}>
+            <div className="pokeball-decoration top"></div>
+            <h2>Decimal Dash</h2>
+            <span className="grade-tag">Grades 4-6</span>
+            <button className="start-btn">Dash 💨</button>
+          </div>
+          <div className="card hub-card" onClick={() => setAppState("PEMDAS")}>
+            <div className="pokeball-decoration top"></div>
+            <h2>PEMDAS Puzzle</h2>
+            <span className="grade-tag">Grades 5-6</span>
+            <button className="start-btn">Solve ⚡</button>
+          </div>
+          <div className="card hub-card" onClick={() => setAppState("ALGEBRA")}>
+            <div className="pokeball-decoration top"></div>
+            <h2>Algebra Arena</h2>
+            <span className="grade-tag">Grades 6+</span>
+            <button className="start-btn">Arena 🏟️</button>
           </div>
         </div>
         <footer className="hub-footer">
-           <button 
-            className="reset-btn"
-            onClick={() => { if(confirm("Reset all progress for ALL games?")) { localStorage.clear(); window.location.reload(); } }}
-          >
-            Reset All Data
-          </button>
+           <button className="reset-btn" onClick={() => { if(confirm("Reset all progress, Owen?")) { localStorage.clear(); window.location.reload(); } }}>Reset Data</button>
         </footer>
       </div>
     )
   }
 
-  if (appState === "MULTIPLICATION") {
-    return <MultiplicationGame onExit={() => setAppState("HUB")} />
+  const exit = () => setAppState("HUB")
+  switch(appState) {
+    case "MULTIPLICATION": return <MultiplicationGame onExit={exit} />
+    case "FRACTIONS": return <FractionGame onExit={exit} />
+    case "DECIMALS": return <DecimalGame onExit={exit} />
+    case "PEMDAS": return <PEMDASGame onExit={exit} />
+    case "ALGEBRA": return <AlgebraGame onExit={exit} />
+    default: return <div />
   }
-
-  return <FractionGame onExit={() => setAppState("HUB")} />
 }
 
+/* --- REUSABLE GAME COMPONENTS --- */
+
 function MultiplicationGame({ onExit }: { onExit: () => void }) {
-  const [gameState, setGameState] = useState<MultiplicationState>("LOBBY")
-  const [sessionCorrect, setSessionCorrect] = useState(0)
-  const [sessionWrong, setSessionWrong] = useState(0)
-  const [currentProblem, setCurrentProblem] = useState({ a: 1, b: 1 })
-  const [options, setOptions] = useState<number[]>([])
-  const [feedback, setFeedback] = useState<{msg: string, type: "correct" | "wrong"} | null>(null)
-  const [timeLeft, setTimeLeft] = useState(QUESTION_TIME)
-  const [performance, setPerformance] = useState<PerformanceMap>({})
-  const [wrongQueue, setWrongQueue] = useState<string[]>([])
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [gameState, setGameState] = useState<GameState>("LOBBY")
+  const [stats, setStats] = useState({ c: 0, w: 0 })
+  const [problem, setProblem] = useState({ a: 1, b: 1, options: [1] as number[] })
+  const [feedback, setFeedback] = useState<any>(null)
 
-  useEffect(() => {
-    const saved = localStorage.getItem(MULT_STORAGE_KEY)
-    if (saved) {
-      try { setPerformance(JSON.parse(saved)) } catch (e) { console.error(e) }
-    }
+  const generate = useCallback(() => {
+    const a = Math.floor(Math.random() * 12) + 1, b = Math.floor(Math.random() * 12) + 1
+    const ans = a * b
+    const opts = new Set([ans])
+    while(opts.size < 4) opts.add(ans + (Math.floor(Math.random()*10)-5))
+    setProblem({ a, b, options: Array.from(opts).sort(() => Math.random() - 0.5) })
+    setFeedback(null)
   }, [])
 
-  const updatePerformance = useCallback((a: number, b: number, isCorrect: boolean) => {
-    const key = `${Math.min(a, b)}x${Math.max(a, b)}`
-    setPerformance(prev => {
-      const current = prev[key] || { correct: 0, wrong: 0, reinforceCount: 0 }
-      const next = {
-        ...current,
-        correct: isCorrect ? current.correct + 1 : current.correct,
-        wrong: !isCorrect ? current.wrong + 1 : current.wrong,
-        reinforceCount: !isCorrect ? 2 : Math.max(0, current.reinforceCount - 1)
-      }
-      const newPerf = { ...prev, [key]: next }
-      localStorage.setItem(MULT_STORAGE_KEY, JSON.stringify(newPerf))
-      return newPerf
-    })
-    if (!isCorrect) setWrongQueue(prev => [...prev, key, key])
-  }, [])
-
-  const generateProblem = useCallback(() => {
-    let nextA: number, nextB: number
-    if (wrongQueue.length > 0) {
-      const [key, ...rest] = wrongQueue
-      const [sa, sb] = key.split("x").map(Number)
-      nextA = sa; nextB = sb
-      setWrongQueue(rest)
-    } else {
-      let found = false, attempts = 0
-      nextA = 1; nextB = 1
-      while (!found && attempts < 20) {
-        const ta = Math.floor(Math.random() * 12) + 1
-        const tb = Math.floor(Math.random() * 12) + 1
-        const key = `${Math.min(ta, tb)}x${Math.max(ta, tb)}`
-        const stats = performance[key]
-        if (stats && stats.correct > 3 && stats.wrong === 0) { attempts++; continue }
-        nextA = ta; nextB = tb; found = true
-      }
-    }
-    const correct = nextA * nextB
-    const distractors = new Set<number>()
-    while(distractors.size < 3) {
-      const offset = Math.floor(Math.random() * 5) + 1
-      const dist = Math.random() > 0.5 ? correct + offset : Math.max(1, correct - offset)
-      if (dist !== correct) distractors.add(dist)
-    }
-    const allOptions = [...Array.from(distractors), correct].sort(() => Math.random() - 0.5)
-    setCurrentProblem({ a: nextA, b: nextB })
-    setOptions(allOptions); setFeedback(null); setTimeLeft(QUESTION_TIME)
-  }, [wrongQueue, performance])
-
-  useEffect(() => {
-    if (gameState === "PLAYING" && !feedback) {
-      if (timeLeft > 0) {
-        timerRef.current = setTimeout(() => setTimeLeft(t => t - 1), 1000)
-      } else {
-        setSessionWrong(w => w + 1)
-        updatePerformance(currentProblem.a, currentProblem.b, false)
-        setFeedback({ msg: "⏰ TIME OUT!", type: "wrong" })
-        setTimeout(generateProblem, 2000)
-      }
-    }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [gameState, timeLeft, feedback, currentProblem, updatePerformance, generateProblem])
-
-  const handleAnswer = (answer: number) => {
-    if (feedback) return 
-    const isCorrect = answer === currentProblem.a * currentProblem.b
-    updatePerformance(currentProblem.a, currentProblem.b, isCorrect)
-    if (isCorrect) {
-      setSessionCorrect(s => s + 1)
-      setFeedback({ msg: "💥 CRITICAL HIT!", type: "correct" })
-    } else {
-      setSessionWrong(w => w + 1)
-      setFeedback({ msg: "MISS!", type: "wrong" })
-    }
-    setTimeout(generateProblem, 1500)
-  }
-
-  const lifetimeStats = useMemo(() => {
-    return Object.values(performance).reduce((acc, curr) => ({
-      correct: acc.correct + curr.correct,
-      wrong: acc.wrong + curr.wrong
-    }), { correct: 0, wrong: 0 })
-  }, [performance])
-
-  if (gameState === "LOBBY") {
-    return (
-      <div className="game-container pokemon-theme">
-        <div className="card lobby">
-          <h2>Multiplication Battle</h2>
-          <div className="lifetime-badge">
-            <h3>LIFETIME STATS</h3>
-            <div className="stats-grid">
-              <div>✅ {lifetimeStats.correct} Correct</div>
-              <div>❌ {lifetimeStats.wrong} Wrong</div>
-            </div>
-          </div>
-          <button onClick={() => { setGameState("PLAYING"); generateProblem(); }} className="start-btn">Start Battle! ⚔️</button>
-          <button onClick={onExit} className="exit-btn">Back to Hub 🏠</button>
-        </div>
-      </div>
-    )
-  }
-
+  if (gameState === "LOBBY") return <Lobby name="Multiplication Battle" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
+  
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <div className="battle-info">
-          <div className="session-stats">
-            SESSION: <span className="c">{sessionCorrect}</span> | <span className="w">{sessionWrong}</span>
-          </div>
-        </div>
-        <div className="timer-bar-container">
-          <div className={`timer-bar ${timeLeft < 4 ? "low" : ""}`} style={{ width: `${(timeLeft / QUESTION_TIME) * 100}%` }}></div>
-        </div>
-        <div className="problem-area">
-          <div className="problem">{currentProblem.a} × {currentProblem.b}</div>
-        </div>
+        <header className="game-status">Correct: {stats.c} | Wrong: {stats.w}</header>
+        <div className="problem-area"><div className="problem">{problem.a} × {problem.b}</div></div>
         <div className="options">
-          {options.map(opt => (
-            <button key={opt} onClick={() => handleAnswer(opt)} className={`option-btn ${feedback && opt === currentProblem.a * currentProblem.b ? "correct" : ""}`} disabled={!!feedback}>{opt}</button>
-          ))}
+          {problem.options.map(o => <button key={o} className="option-btn" onClick={() => {
+            if (o === problem.a * problem.b) { setStats(s=>({ ...s, c: s.c+1 })); setFeedback({m:"💥 HIT!", t:"correct"}); setTimeout(generate, 1000) }
+            else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"MISS!", t:"wrong"}); }
+          }}>{o}</button>)}
         </div>
-        {feedback && <div className={`feedback-box ${feedback.type}`}>{feedback.msg}</div>}
-        <button onClick={() => setGameState("LOBBY")} className="exit-btn">End Run 💨</button>
+        {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
+        <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
       </div>
     </div>
   )
 }
 
-interface Fraction {
-  n: number
-  d: number
-}
-
 function FractionGame({ onExit }: { onExit: () => void }) {
-  const [gameState, setGameState] = useState<MultiplicationState>("LOBBY")
-  const [sessionCorrect, setSessionCorrect] = useState(0)
-  const [sessionWrong, setSessionWrong] = useState(0)
-  const [problem, setProblem] = useState<{f1: Fraction, f2: Fraction, type: "COMPARE" | "SIMPLIFY"}>({ f1: {n:1,d:2}, f2: {n:1,d:2}, type: "SIMPLIFY" })
-  const [options, setOptions] = useState<any[]>([])
-  const [feedback, setFeedback] = useState<{msg: string, type: "correct" | "wrong"} | null>(null)
-  
-  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
+  const [gameState, setGameState] = useState<GameState>("LOBBY")
+  const [stats, setStats] = useState({ c: 0, w: 0 })
+  const [prob, setProb] = useState<any>(null)
+  const [feedback, setFeedback] = useState<any>(null)
 
-  const generateProblem = useCallback(() => {
-    const isCompare = Math.random() > 0.5
-    if (isCompare) {
-      const f1 = { n: Math.floor(Math.random()*8)+1, d: Math.floor(Math.random()*8)+2 }
-      const f2 = { n: Math.floor(Math.random()*8)+1, d: Math.floor(Math.random()*8)+2 }
-      setProblem({ f1, f2, type: "COMPARE" })
-      setOptions(["<", "=", ">"])
+  const generate = useCallback(() => {
+    const isSimp = Math.random() > 0.5
+    if (isSimp) {
+      const common = Math.floor(Math.random()*3)+2, n = Math.floor(Math.random()*5)+1, d = n + Math.floor(Math.random()*5)+1
+      const ans = `${n}/${d}`
+      const opts = new Set([ans])
+      while(opts.size < 4) opts.add(`${Math.floor(Math.random()*5)+1}/${Math.floor(Math.random()*10)+2}`)
+      setProb({ t: "SIMP", n1: n*common, d1: d*common, ans, opts: Array.from(opts).sort() })
     } else {
-      const common = Math.floor(Math.random()*4)+2
-      const sn = Math.floor(Math.random()*6)+1
-      const sd = Math.floor(Math.random()*6)+sn+1
-      const f1 = { n: sn * common, d: sd * common }
-      setProblem({ f1, f2: {n:sn, d:sd}, type: "SIMPLIFY" })
-      const distractors = new Set<string>()
-      distractors.add(`${sn}/${sd}`)
-      while(distractors.size < 4) {
-        distractors.add(`${Math.floor(Math.random()*5)+1}/${Math.floor(Math.random()*10)+6}`)
-      }
-      setOptions(Array.from(distractors).sort(() => Math.random() - 0.5))
+      const n1 = Math.floor(Math.random()*5)+1, d1 = Math.floor(Math.random()*5)+2, n2 = Math.floor(Math.random()*5)+1, d2 = Math.floor(Math.random()*5)+2
+      const v1 = n1/d1, v2 = n2/d2, ans = v1 < v2 ? "<" : v1 > v2 ? ">" : "="
+      setProb({ t: "COMP", n1, d1, n2, d2, ans, opts: ["<", "=", ">"] })
     }
     setFeedback(null)
   }, [])
 
-  const handleAnswer = (ans: any) => {
-    if (feedback) return
-    let correct = false
-    if (problem.type === "COMPARE") {
-      const v1 = problem.f1.n / problem.f1.d
-      const v2 = problem.f2.n / problem.f2.d
-      const actual = v1 < v2 ? "<" : v1 > v2 ? ">" : "="
-      correct = ans === actual
-    } else {
-      const g = gcd(problem.f1.n, problem.f1.d)
-      correct = ans === `${problem.f1.n/g}/${problem.f1.d/g}`
-    }
-
-    if (correct) {
-      setSessionCorrect(s => s + 1)
-      setFeedback({ msg: "🌟 PERFECT!", type: "correct" })
-    } else {
-      setSessionWrong(w => w + 1)
-      setFeedback({ msg: "Oops!", type: "wrong" })
-    }
-    setTimeout(generateProblem, 1500)
-  }
-
-  if (gameState === "LOBBY") {
-    return (
-      <div className="game-container pokemon-theme">
-        <div className="card lobby">
-          <h2>Fraction Quest</h2>
-          <p>Master the art of fractions!</p>
-          <button onClick={() => { setGameState("PLAYING"); generateProblem(); }} className="start-btn">Begin Quest 🧩</button>
-          <button onClick={onExit} className="exit-btn">Back to Hub 🏠</button>
-        </div>
-      </div>
-    )
-  }
+  if (gameState === "LOBBY") return <Lobby name="Fraction Quest" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
 
   return (
     <div className="game-container pokemon-theme">
       <div className="card playing">
-        <div className="battle-info">
-          <div className="session-stats">SCORE: {sessionCorrect} | {sessionWrong}</div>
-        </div>
+        <header className="game-status">Score: {stats.c} - {stats.w}</header>
         <div className="problem-area">
-          {problem.type === "COMPARE" ? (
-            <div className="problem fraction-row">
-              <div className="frac"><span>{problem.f1.n}</span><hr/><span>{problem.f1.d}</span></div>
-              <div className="vs">?</div>
-              <div className="frac"><span>{problem.f2.n}</span><hr/><span>{problem.f2.d}</span></div>
-            </div>
-          ) : (
-            <div className="problem fraction-row">
-               <div className="frac"><span>{problem.f1.n}</span><hr/><span>{problem.f1.d}</span></div>
-               <div className="vs">= ?</div>
-            </div>
-          )}
+          {prob?.t === "SIMP" ? <div className="fraction-row"><div className="frac"><span>{prob.n1}</span><hr/><span>{prob.d1}</span></div> <div className="vs">= ?</div></div>
+          : <div className="fraction-row"><div className="frac"><span>{prob?.n1}</span><hr/><span>{prob?.d1}</span></div> <div className="vs">?</div> <div className="frac"><span>{prob?.n2}</span><hr/><span>{prob?.d2}</span></div></div>}
         </div>
         <div className="options">
-          {options.map(opt => (
-            <button key={opt} onClick={() => handleAnswer(opt)} className="option-btn">{opt}</button>
-          ))}
+          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={() => {
+            if (o === prob.ans) { setStats(s=>({ ...s, c: s.c+1 })); setFeedback({m:"🌟 NICE!", t:"correct"}); setTimeout(generate, 1000) }
+            else { setStats(s=>({ ...s, w: s.w+1 })); setFeedback({m:"Try again!", t:"wrong"}); }
+          }}>{o}</button>)}
         </div>
-        {feedback && <div className={`feedback-box ${feedback.type}`}>{feedback.msg}</div>}
-        <button onClick={() => setGameState("LOBBY")} className="exit-btn">End Run 💨</button>
+        {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
+        <button className="exit-btn" onClick={() => setGameState("LOBBY")}>Exit</button>
+      </div>
+    </div>
+  )
+}
+
+function DecimalGame({ onExit }: { onExit: () => void }) {
+  const [gameState, setGameState] = useState<GameState>("LOBBY")
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+
+  const generate = useCallback(() => {
+    const isMult = Math.random() > 0.7
+    let a, b, ans
+    if (isMult) { a = (Math.floor(Math.random()*20)+1)/10; b = Math.floor(Math.random()*5)+2; ans = parseFloat((a * b).toFixed(2)) }
+    else { a = (Math.floor(Math.random()*100)+10)/10; b = (Math.floor(Math.random()*100)+10)/10; ans = Math.random()>0.5 ? parseFloat((a+b).toFixed(2)) : parseFloat((Math.max(a,b)-Math.min(a,b)).toFixed(2)) }
+    const opts = new Set([ans])
+    while(opts.size < 4) opts.add(parseFloat((ans + (Math.random()*2-1)).toFixed(2)))
+    setProb({ q: isMult ? `${a} × ${b}` : (a > b ? `${a} + ${b}` : `${b} - ${a}`), ans, opts: Array.from(opts).sort() })
+    setFeedback(null)
+  }, [])
+
+  if (gameState === "LOBBY") return <Lobby name="Decimal Dash" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
+  return <GameView name="Decimal Dash" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
+    if(o===prob.ans) { setStats(s=>({...s,c:s.c+1})); setFeedback({m:"✨ SHINY!", t:"correct"}); setTimeout(generate, 1000) }
+    else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Missed...", t:"wrong"}); }
+  }} onExit={()=>setGameState("LOBBY")} />
+}
+
+function PEMDASGame({ onExit }: { onExit: () => void }) {
+  const [gameState, setGameState] = useState<GameState>("LOBBY")
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+
+  const generate = useCallback(() => {
+    const a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*5)+2, c = Math.floor(Math.random()*5)+2
+    const type = Math.floor(Math.random()*3)
+    let q = "", ans = 0
+    if(type===0) { q = `(${a} + ${b}) × ${c}`; ans = (a+b)*c }
+    else if(type===1) { q = `${a} × ${b} + ${c}`; ans = (a*b)+c }
+    else { q = `${a} + ${b} × ${c}`; ans = a+(b*c) }
+    const opts = new Set([ans])
+    while(opts.size < 4) opts.add(ans + (Math.floor(Math.random()*10)-5))
+    setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
+    setFeedback(null)
+  }, [])
+
+  if (gameState === "LOBBY") return <Lobby name="PEMDAS Puzzle" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
+  return <GameView name="PEMDAS" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
+    if(o===prob.ans) { setStats(s=>({...s,c:s.c+1})); setFeedback({m:"🎯 DIRECT HIT!", t:"correct"}); setTimeout(generate, 1000) }
+    else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Recalibrating...", t:"wrong"}); }
+  }} onExit={()=>setGameState("LOBBY")} />
+}
+
+function AlgebraGame({ onExit }: { onExit: () => void }) {
+  const [gameState, setGameState] = useState<GameState>("LOBBY")
+  const [stats, setStats] = useState({ c: 0, w: 0 }), [prob, setProb] = useState<any>(null), [feedback, setFeedback] = useState<any>(null)
+
+  const generate = useCallback(() => {
+    const x = Math.floor(Math.random()*10)+1, a = Math.floor(Math.random()*5)+2, b = Math.floor(Math.random()*10)+1
+    const ans = x
+    const c = a * x + b
+    const q = `${a}x + ${b} = ${c}`
+    const opts = new Set([ans])
+    while(opts.size < 4) opts.add(Math.max(1, ans + (Math.floor(Math.random()*6)-3)))
+    setProb({ q, ans, opts: Array.from(opts).sort((x,y)=>x-y) })
+    setFeedback(null)
+  }, [])
+
+  if (gameState === "LOBBY") return <Lobby name="Algebra Arena" onStart={() => { setGameState("PLAYING"); generate(); }} onExit={onExit} />
+  return <GameView name="Algebra" stats={stats} prob={prob} feedback={feedback} onAnswer={(o:any)=>{
+    if(o===prob.ans) { setStats(s=>({...s,c:s.c+1})); setFeedback({m:"💪 MASTERED!", t:"correct"}); setTimeout(generate, 1000) }
+    else { setStats(s=>({...s,w:s.w+1})); setFeedback({m:"Keep solving!", t:"wrong"}); }
+  }} onExit={()=>setGameState("LOBBY")} />
+}
+
+function Lobby({ name, onStart, onExit }: any) {
+  return (
+    <div className="game-container pokemon-theme">
+      <div className="card lobby">
+        <h2>{name}</h2>
+        <p>Ready Owen? Your training begins now.</p>
+        <button onClick={onStart} className="start-btn">Start! ⚔️</button>
+        <button onClick={onExit} className="exit-btn">Back to Hub 🏠</button>
+      </div>
+    </div>
+  )
+}
+
+function GameView({ stats, prob, feedback, onAnswer, onExit }: any) {
+  return (
+    <div className="game-container pokemon-theme">
+      <div className="card playing">
+        <header className="game-status">Score: {stats.c} | Mistakes: {stats.w}</header>
+        <div className="problem-area"><div className="problem">{prob?.q}</div></div>
+        <div className="options">
+          {prob?.opts.map((o:any) => <button key={o} className="option-btn" onClick={()=>onAnswer(o)}>{o}</button>)}
+        </div>
+        {feedback && <div className={`feedback-box ${feedback.t}`}>{feedback.m}</div>}
+        <button className="exit-btn" onClick={onExit}>Exit</button>
       </div>
     </div>
   )
